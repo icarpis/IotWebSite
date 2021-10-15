@@ -162,35 +162,58 @@ function Read()
 	}
 }
 
-var isOn = true;
+var globalState = false;
+var isDone = false;
 
-function Light()
+function Light(state)
 {
+	showProgressBar(true);
 	var dbRef = firebase.database().ref();
 	var updates = {};
 	var elem = document.getElementById("btnOUs");
-	if (isOn)
+	if (state)
 	{
-        updates['lightOn'] = false;
+		updates['lightOn'] = true;
         dbRef.update(updates);
 		
-		elem.textContent = "OFF";
-		elem.style.backgroundColor = "Red";
-		isOn = false;
+		elem.textContent = "ON";
+		elem.style.backgroundColor = "Green";
+		globalState = true;
 	}
 	else
 	{
-        updates['lightOn'] = true;
+		updates['lightOn'] = false;
         dbRef.update(updates);
-	  
-		elem.textContent = "ON";
-		elem.style.backgroundColor = "Green";
-		isOn = true;
+
+		elem.textContent = "OFF";
+		elem.style.backgroundColor = "Red";
+		globalState = false;
 	}
+	
+	isDone = false;
+	(function(){
+		firebase.database().ref().once("value")
+	    .then(function(snap) {
+			if (snap)
+			{
+				if (snap.child("lightState").val() == globalState)
+				{
+					showProgressBar(false);
+					isDone = true;
+				}
+			}
+		});
+		
+		if (!isDone)
+		{
+			setTimeout(arguments.callee, 2000);
+		}
+	})();
+
 }
 
 $("button").click(function(){
-	Light();
+	Light(!globalState);
 });
 
 showProgressBar(true);
@@ -209,6 +232,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 
 	  
+
 window.addEventListener("load", function(){
     // if (Connect("192.168.4.1", 8888))
 	// {
@@ -235,12 +259,16 @@ window.addEventListener("load", function(){
 	
   
 	  var dbRef = firebase.database().ref();
-		dbRef.once("value")
-		.then(function(snap) {
-		  Light(snap.child("lightOn").val());
-		  showProgressBar(false);
-		  document.body.style.backgroundColor = "black";
-  });
+	  
+	dbRef.once("value")
+	.then(function(snap) {
+		if (snap)
+		{
+			Light(snap.child("lightOn").val());
+			document.body.style.backgroundColor = "black";
+		}
+	});
+	
 });
 
 
